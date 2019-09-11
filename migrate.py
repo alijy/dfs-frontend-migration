@@ -1,17 +1,17 @@
 import ntpath
 import os.path
-import re
-from pyhocon import ConfigFactory, ConfigMissingException
+from pyhocon import ConfigFactory
+from acknowledgePage import migrate_acknowledge_messages, generate_acknowledge_template, update_ackTemplateLocator, \
+  update_ackTemplates
+from formCatalogue import *
+from helpers import digitalUrl
 
-exportFilePath = '/Users/ali/code/hmrcdev/pool/dfs-digital-forms-frontend/conf/formCatalogue/CA72ASUB.conf'
-formCatalogueUrl = "/Users/ali/code/hmrcdev/pool/dfs-digital-forms-frontend/conf/form-catalogue.conf"
-importMessagesUrl = '/Users/ali/code/hmrcdev/pool/dfs-frontend/conf/messages'
-exportMessagesUrl = '/Users/ali/code/hmrcdev/pool/dfs-template-renderer/conf/messages'
-
-importFileName = 'migrateThis.conf'
+exportFilePath = digitalUrl + '/conf/formCatalogue/TES1.conf'
+formCatalogueUrl = digitalUrl + '/conf/form-catalogue.conf'
+importFileName = 'migrationConfig.conf'
 
 
-# read form type reference from migrateThis.conf
+# read form type reference from migrationConfig.conf
 f = open(importFileName, 'r')
 fLine = f.readline().strip()
 while fLine.startswith('#') or fLine == "":
@@ -30,7 +30,7 @@ conf = ConfigFactory.parse_file(importFileName)
 
 
 if os.path.exists(exportFilePath):
-  print(f"{exportFileName} already exists!\nNo automated migration is done!")
+  print(f"{exportFileName} already exists. No migration is done!")
 else:
   # initialise digital config file
   f = open(exportFilePath, 'w')
@@ -141,15 +141,15 @@ else:
   # add welsh language
   f.writelines(["\n\t\tlanguage {",
                 "\n\t\t\twelsh {"])
+  welshEnabled = 'false'
   try:
     value = conf[formTypeRef]['language']['welsh']['enabled']
     if value:
-      f.write("\n\t\t\t\tenabled = true")
-    else:
-      f.write("\n\t\t\t\tenabled = false")
+      welshEnabled = 'true'
   except:
     print("Not found: Welsh language")
-    f.write("\n\t\t\t\tenabled = false")
+  finally:
+    f.write(f"\n\t\t\t\tenabled = {welshEnabled}")
 
   f.writelines(["\n\t\t\t}",
                 "\n\t\t}\n"])
@@ -159,6 +159,7 @@ else:
   individualAccess = 'false'
   organisationAccess = 'false'
   oneTimePass = 'false'
+  userType = 'Individual'  # default
   try:
     value = conf[formTypeRef]['authentication']['type']
     if value == 'GGIV':
@@ -214,74 +215,30 @@ else:
 
   print("Config file created")
 
-  # update form catalogue
-  f = open(formCatalogueUrl, 'a')
-  f.write(f"\ninclude \"formCatalogue/{exportFileName}\"")
-  f.close()
-  print("Form catalogue updated")
+  update_form_catalogue(formId)
 
+  print(formId, formTypeRef, userType)
+  messageCount = migrate_acknowledge_messages(formId, formTypeRef, userType, welshEnabled)
 
-  # migrate EN messages
-  # read acknowledge messages from dfs-frontend
-  f = open(importMessagesUrl, 'r')
-  messages = f.read().split("\n")
-  f.close()
+  generate_acknowledge_template(formId, userType, messageCount)
 
-  ackIndex = 0
-  ackMessageList = []
+  update_ackTemplateLocator(formId, userType)
 
-  for i in range(0, len(messages)):
-    if "Acknowledgement" in messages[i] and formTypeRef in messages[i]:
-      print(messages[i].strip())
-      ackIndex = i + 2
+  update_ackTemplates(formId, userType)
 
-  while not (messages[ackIndex] == "" or messages[ackIndex].strip().startswith("#")):
-    ackMessage = messages[ackIndex]
-    # while not messages[ackIndex + 1].strip().startswith('page'):
-    #   ackMessage += f"\n{messages[ackIndex + 1]}"
-    #   ackIndex += 1
+  # read guide page type for guide page migration
+  guidePageType = ''
+  try:
+    pass
+    # guidePageType = conf[formTypeRef]['guide_page_type']
+  except:
+    pass
 
-    if not ackMessage.strip().startswith('page'):
-      ackMessageList[-1] += f"\n{ackMessage}"
-    else:
-      ackMessageList.append(ackMessage)
-    ackIndex += 1
-
-  print(ackMessageList)
-
-  # write acknowledge messages into dfs-template-renderer
-  ackCount = 0
-  f = open(exportMessagesUrl, 'a')
-  f.writelines(["\n\n##############################",
-                f"\n# Ack {formId} {userType} #",
-                "\n##############################"])
-
-  f.write(f"\nack.nextSteps.{formId}.{userType}=Next steps")
-
-
-  def sanitise(message_list):
-    result = []
-    cleaner = re.compile('<.*?>')
-    for m in message_list:
-      clean_text = re.sub(cleaner, '', m).strip("\\").strip()
-      if clean_text != "":
-        result.append(clean_text)
-    return result
-
-  for m in ackMessageList:
-    if 'sent' in m:
-      f.write(f"\nack.submitted.{formId}.{userType}={m.split('=')[1]}")
-    elif 'save a copy' in m:
-      pass
-    else:
-      rawMesssage = sanitise(m.split("\n"))
-      if len(rawMesssage) == 1:
-        ackCount += 1
-        f.write(f"\nack.{ackCount:02d}.{formId}.{userType}={rawMesssage[0].split('=')[1]}")
-      else:
-        for i in range(1, len(rawMesssage)):
-          ackCount += 1
-          f.write(f"\nack.{ackCount:02d}.{formId}.{userType}={rawMesssage[i]}")
-
+  if guidePageType == 'generic':
+    pass
+  elif guidePageType == 'tes':
+    pass
+  else:
+    pass
 
   print("\nDone!")
