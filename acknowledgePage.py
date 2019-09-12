@@ -9,7 +9,6 @@ def migrate_acknowledge_messages(formId, formRef, uType, welshEnabled):
 
 
 def migrate_messages(formId, formRef, uType, lang = 'en'):
-
   if lang == 'cy':
     importUrl = frontendUrl + '/conf/messages.cy'
     exportUrl = templateUrl + '/conf/messages.cy'
@@ -80,8 +79,10 @@ def generate_acknowledge_template(formId, userType, messageNum):
   folder = templateUrl + '/app/uk/gov/hmrc/dfstemplaterenderer/templates/ackTemplates' + f"/{formId}"
   if not os.path.exists(folder):
     os.mkdir(folder)
+    print(f"Folder {formId} created")
   if not os.path.exists(folder + f"/{userType}"):
     os.mkdir(folder + f"/{userType}")
+    print(f"Folder {userType} created")
   if os.path.isfile(folder + f"/{userType}/{formId}.scala.html"):
     print('Warning: Acknowledgement template already exists')
   else:
