@@ -2,11 +2,14 @@ import ntpath
 import os.path
 from pyhocon import ConfigFactory
 from acknowledgePage import migrate_acknowledge_messages, generate_acknowledge_template, update_ackTemplateLocator, \
-  update_ackTemplates
+  update_ackTemplates, update_ackTemplate_spec
 from formCatalogue import *
+from guidePage import migrate_guide_messages, generate_guide_template, update_guideTemplateLocator, \
+  update_guideTemplates, update_guideTemplate_spec, guide_page_exists
 from helpers import digitalUrl
 
-exportFilePath = digitalUrl + '/conf/formCatalogue/TES1.conf'
+# exportFilePath = digitalUrl + '/conf/formCatalogue/CA72ASUB.conf'
+exportFilePath = digitalUrl + '/conf/formCatalogue/CBOptIn.conf'
 formCatalogueUrl = digitalUrl + '/conf/form-catalogue.conf'
 importFileName = 'migrationConfig.conf'
 
@@ -59,7 +62,7 @@ else:
     value = conf[formTypeRef]['business_category'][0]
     f.write(f"\n\t\tbusiness_category = [{value}]\n")
   except:
-    print("Not found: business category")
+    print("WARN: business category NOT found in config file")
 
 
   # add aem version if available
@@ -67,7 +70,7 @@ else:
     value = conf[formTypeRef]['aem']['form_version']
   except:
     value = ""
-    print("Not found: aem form version")
+    print("WARN : aem form version NOT found in config file")
   finally:
     f.writelines(["\n\t\taem {",
                   f"\n\t\t\tform_version = \"{value}\"",
@@ -83,7 +86,7 @@ else:
     value = conf[formTypeRef]['dms']['dms_metadata']['business_area']
   except:
     value = ""
-    print("Not found: DMS business area")
+    print("WARN : DMS business area NOT found in config file")
   finally:
     f.write(f"\n\t\t\t\tbusiness_area = \"{value}\"")
 
@@ -92,7 +95,7 @@ else:
     value = conf[formTypeRef]['dms']['dms_metadata']['classification_type']
   except:
     value = ""
-    print("Not found: DMS classification type")
+    print("WARN : DMS classification type NOT found in config file")
   finally:
     f.write(f"\n\t\t\t\tclassification_type = \"{value}\"")
 
@@ -119,7 +122,7 @@ else:
     value = conf[formTypeRef]['email_notification']['email_template_id']
   except:
     value = ""
-    print("Not found: email template")
+    print("WARN : email template NOT found in config file")
   finally:
     f.writelines(["\n\t\temail {",
                   f"\n\t\t\ttemplate_id = \"{value}\"",
@@ -134,7 +137,7 @@ else:
     else:
       f.write("\n\t\t\tenabled = false")
   except:
-    print("Not found: webchat")
+    print("WARN : webchat NOT found in config file")
     f.write("\n\t\t\tenabled = false")
   f.write("\n\t\t}\n")
 
@@ -147,7 +150,7 @@ else:
     if value:
       welshEnabled = 'true'
   except:
-    print("Not found: Welsh language")
+    print("WARN : Welsh language NOT found in config file")
   finally:
     f.write(f"\n\t\t\t\tenabled = {welshEnabled}")
 
@@ -176,7 +179,7 @@ else:
       oneTimePass = 'true'
       userType = 'Individual'
   except:
-    print("Not found: Affinity Access")
+    print("WARN : Affinity Access NOT found in config file")
   finally:
     f.writelines(["\n\t\taffinity_access {",
                   "\n\t\t\tagent {",
@@ -203,7 +206,7 @@ else:
     value = conf[formTypeRef]['start_page']
   except:
     value = ""
-    print("Not found: guide page")
+    print("WARN : guide page NOT found in config file")
   finally:
     f.write(f"\n\t\tguide_page = \"{value}\"\n")
 
@@ -213,32 +216,36 @@ else:
                 "\n}"])
   f.close()
 
-  print("Config file created")
+  print("INFO : Config file created")
 
   update_form_catalogue(formId)
 
   print(formId, formTypeRef, userType)
   messageCount = migrate_acknowledge_messages(formId, formTypeRef, userType, welshEnabled)
-
   generate_acknowledge_template(formId, userType, messageCount)
-
   update_ackTemplateLocator(formId, userType)
-
   update_ackTemplates(formId, userType)
+  update_ackTemplate_spec(formId, userType)
 
   # read guide page type for guide page migration
   guidePageType = ''
   try:
-    pass
-    # guidePageType = conf[formTypeRef]['guide_page_type']
+    guidePageType = conf[formTypeRef]['guide_page_type']
   except:
     pass
-
   if guidePageType == 'generic':
-    pass
+    if not guide_page_exists(formId, userType):
+      # guideStats = migrate_guide_messages(formId, formTypeRef, userType, welshEnabled)
+      guideStats = migrate_guide_messages(formId, formTypeRef, userType, 'false')  # TODO: replace with above later
+      generate_guide_template(formId, userType, guideStats)
+      update_guideTemplateLocator(formId, userType)
+      update_guideTemplates(formId, userType)
+      update_guideTemplate_spec(formId, userType)
+    else:
+      print("INFO : Guide Page already exists.")
   elif guidePageType == 'tes':
-    pass
+    print("WARN : This is a TES form. You need to migrate the guide page manually!")
   else:
-    pass
+    print("WARN : I couldn't find the guide page type in the config file")
 
-  print("\nDone!")
+  print("\n\nINFO : *** Migration Process Completed. ***")

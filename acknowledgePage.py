@@ -1,4 +1,4 @@
-from helpers import sanitise, frontendUrl, templateUrl
+from helpers import sanitise, frontendUrl, templateUrl, getLineNumber
 import os
 
 
@@ -63,14 +63,14 @@ def migrate_messages(formId, formRef, uType, lang = 'en'):
       # TODO: update/change link.uri.track-your-form after DL-2350 is done
       f.write(f"\nlink.uri.track-your-form.{formId}.{uType}={m.split('=')[1]}")
     else:
-      rawMesssage = sanitise(m.split("\n"))
-      if len(rawMesssage) == 1:
+      splitMessage = sanitise(m.split("\n"))
+      if len(splitMessage) == 1:
         ackCount += 1
-        f.write(f"\nack.{ackCount:02d}.{formId}.{uType}={rawMesssage[0].split('=')[1]}")
+        f.write(f"\nack.{ackCount:02d}.{formId}.{uType}={splitMessage[0].split('=')[1]}")
       else:
-        for i in range(1, len(rawMesssage)):
+        for i in range(1, len(splitMessage)):
           ackCount += 1
-          f.write(f"\nack.{ackCount:02d}.{formId}.{uType}={rawMesssage[i]}")
+          f.write(f"\nack.{ackCount:02d}.{formId}.{uType}={splitMessage[i]}")
 
   return ackCount
 
@@ -151,6 +151,23 @@ def update_ackTemplates(formId, userType):
   else:
     lineNumber = 29
 
+  contents.insert(lineNumber, messageTemplate)
+
+  f = open(fileUrl, 'w')
+  contents = "".join(contents)
+  f.write(contents)
+  f.close()
+
+
+def update_ackTemplate_spec(formId, userType):
+  fileUrl = templateUrl + '/test/uk/gov/hmrc/dfstemplaterenderer/templates/ackTemplates/AckTemplateLocatorSpec.scala'
+  lineNumber = getLineNumber(fileUrl, 'ackTemplateLocator.templateGroups.keys')
+
+  f = open(fileUrl, 'r')
+  contents = f.readlines()
+  f.close()
+
+  messageTemplate = f"\t\t\t\t\"{formId}.{userType}\",\n"
   contents.insert(lineNumber, messageTemplate)
 
   f = open(fileUrl, 'w')
