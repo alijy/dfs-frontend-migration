@@ -9,7 +9,8 @@ from guidePage import migrate_guide_messages, generate_guide_template, update_gu
 from helpers import digitalUrl
 
 # exportFilePath = digitalUrl + '/conf/formCatalogue/CA72ASUB.conf'
-exportFilePath = digitalUrl + '/conf/formCatalogue/CBOptIn.conf'
+# exportFilePath = digitalUrl + '/conf/formCatalogue/CBOptIn.conf'
+exportFilePath = digitalUrl + '/conf/formCatalogue/PT_CertOfRes.conf'
 formCatalogueUrl = digitalUrl + '/conf/form-catalogue.conf'
 importFileName = 'migrationConfig.conf'
 
@@ -219,8 +220,8 @@ else:
   print("INFO : Config file created")
 
   update_form_catalogue(formId)
-
   print(formId, formTypeRef, userType)
+
   messageCount = migrate_acknowledge_messages(formId, formTypeRef, userType, welshEnabled)
   generate_acknowledge_template(formId, userType, messageCount)
   update_ackTemplateLocator(formId, userType)

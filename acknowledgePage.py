@@ -113,7 +113,7 @@ def generate_acknowledge_template(formId, userType, messageNum):
     for i in range(messageNum):
       f.write(f"\n@paragraph(\"ack.{i+1:02d}\", params)")
 
-    f.write("\n@trackAndTrace(params)")
+    f.write("\n@ContinueJourneyButton(params)")
     if userType == 'Individual':
       f.write("\n@crossSelling(params)")
 

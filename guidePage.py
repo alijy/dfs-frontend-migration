@@ -1,6 +1,7 @@
 import os
 import bs4
-from helpers import frontendUrl, templateUrl, messageParser, isUrl, getLineNumber
+from helpers import frontendUrl, templateUrl, messageParser, isUrl, getLineNumber, \
+  get_nested_list, get_message_with_affinity
 
 
 def migrate_guide_messages(formId, formRef, uType, welshEnabled):
@@ -74,6 +75,22 @@ def migrate_guide_messages_for_lang(formId, formRef, uType, lang='en'):
   return messageStats
 
 
+# def decode_and_write_line(f, m):
+#   pass
+#
+#
+# def decode_and_write_section(f, m):
+#   m = ['do this if:','thing one','thing two', 'thing', '/thing/three', 'three', '!']
+#   if len(m) == 1:
+#     print(f"<p>{m}</p>")
+#   elif len(m) > 1:
+#     if m[0].endswith(':'):
+#       f.write(f"<p>{m}</p>")
+#       # decode_and_write
+#   else:
+#     pass # to move on in
+
+
 def messageUtilLine(count, formId):
   return f"@MessagesUtils.getMessagesWithAffinity(\"guide.{count}\", \"{formId}\", {{params(\"langLocaleCode\")}}.toString, {{params(\"affinityGroup\")}}.toString)"
 
@@ -126,22 +143,31 @@ def generate_guide_template(formId, userType, stats):
         f.write("))")
       elif key == 'extraInfo':
         # TODO: need to make this section even more flexible
-        for j in range(1, len(value)):
-          mLine = value[j]
-          f.write(f"\n\n<p>")
-          urlIndex = -99
-          for k in range(len(mLine)):
-            if isUrl(mLine[k]):
-              urlIndex = k
-              f.write(f" <a href=\"{mLine[k]}\">")
-            else:
-              f.write(
-                f"@MessagesUtils.getMessagesWithAffinity(\"guide.{count:02d}\", \"{formId}\", {{params(\"langLocaleCode\")}}.toString, {{params(\"affinityGroup\")}}.toString)")
+        for mLine in value[1:]:
+          if isinstance(mLine[0], str):
+            print(">>>>>>>>>>>>>> It is a string >>>>>>>>>>>>>>>>>")
+            if mLine[0].endswith(':'):
+              f.write(f"\n\n<p>{get_message_with_affinity(formId, count)}</p>")
               count += 1
-              if k == urlIndex + 1:
-                f.write("</a>")
-                urlIndex = -99
-          f.write("</p>")
+              f.write(f"\n\n{get_nested_list(formId, count, len(mLine) - 1)}")
+              count += len(mLine) - 1
+            else:
+              f.write(f"\n\n<p>")
+              urlIndex = -99
+              for k in range(len(mLine)):
+                if isUrl(mLine[k]):
+                  urlIndex = k
+                  f.write(f" <a href=\"{mLine[k]}\">")
+                else:
+                  f.write(f"{get_message_with_affinity(formId, count)}")
+                  count += 1
+                  if k == urlIndex + 1:
+                    f.write("</a>")
+                    urlIndex = -99
+              f.write("</p>")
+          else:
+            print("==============It is a list =================")
+
       elif key == 'beforeStart':
         f.write(f"\n\n@baseGenericGuidePageBody(params, \"{formId}\")")
 
@@ -159,6 +185,7 @@ def generate_guide_template(formId, userType, stats):
           f.write("))")
 
     f.write("\n\n<p>@MessagesUtils.getCommonMessages(\"page.guide.youCanTrack\", {params(\"langLocaleCode\")}.toString) <a href=\"@Links.ptaLink\">@MessagesUtils.getCommonMessages(\"abandon.pta.link.msg\", {params(\"langLocaleCode\")}.toString)</a> </p>")
+    f.close()
 
 def update_guideTemplateLocator(formId, userType):
   fileUrl = templateUrl + '/app/uk/gov/hmrc/dfstemplaterenderer/templates/guidePageTemplates/GuidePageTemplateLocator.scala'
