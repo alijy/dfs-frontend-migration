@@ -128,34 +128,36 @@ def generate_guide_template(formId, userType, stats):
           count += 1
         f.write("))")
       elif key == 'extraInfo':
+        count, text = get_partial_template(formId, count, key, value)
+        f.write(text)
         # TODO: need to make this section even more flexible
-        for mLine in value[1:]:
-          if isinstance(mLine[0], str):
-            print(">>>>>>>>>>>>>> It is a string >>>>>>>>>>>>>>>>>")
-            if mLine[0].endswith(':'):
-              f.write(f"\n\n<p>{get_message_with_affinity(formId, count)}</p>")
-              count += 1
-              f.write(f"\n\n{get_nested_list(formId, count, len(mLine) - 1)}")
-              count += len(mLine) - 1
-            else:
-              f.write(f"\n\n<p>")
-              urlIndex = -99
-              for k in range(len(mLine)):
-                if isUrl(mLine[k]):
-                  urlIndex = k
-                  f.write(f" <a href=\"{mLine[k]}\">")
-                else:
-                  f.write(f"{get_message_with_affinity(formId, count)}")
-                  count += 1
-                  if k == urlIndex + 1:
-                    f.write("</a>")
-                    urlIndex = -99
-              f.write("</p>")
-          else:
-            print("==============It is a list =================")
+        # for mLine in value[1:]:
+        #   if isinstance(mLine[0], str):
+        #     print(">>>>>>>>>>>>>> It is a string >>>>>>>>>>>>>>>>>")
+        #     if mLine[0].endswith(':'):
+        #       f.write(f"\n\n<p>{get_message_with_affinity(formId, count)}</p>")
+        #       count += 1
+        #       f.write(f"\n\n{get_nested_list(formId, count, len(mLine) - 1)}")
+        #       count += len(mLine) - 1
+        #     else:
+        #       f.write(f"\n\n<p>")
+        #       urlIndex = -99
+        #       for k in range(len(mLine)):
+        #         if isUrl(mLine[k]):
+        #           urlIndex = k
+        #           f.write(f" <a href=\"{mLine[k]}\">")
+        #         else:
+        #           f.write(f"{get_message_with_affinity(formId, count)}")
+        #           count += 1
+        #           if k == urlIndex + 1:
+        #             f.write("</a>")
+        #             urlIndex = -99
+        #       f.write("</p>")
+        #   else:
+        #     print("==============It is a list =================")
 
       elif key == 'beforeStart':
-        text = get_partial_template(formId, count, key, value)
+        count, text = get_partial_template(formId, count, key, value)
         f.write(text)
 
         # f.write(

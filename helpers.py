@@ -85,7 +85,7 @@ def get_partial_template(formId, count, key, value):
         s += f"\n\n{t}"
       else:
         s += f"\n\n!!!!!!! This is an UNHANDLED variation !!!!!!!"
-  return s
+  return count, s
 
 
 def getLineNumber(fileUrl, lookup):
