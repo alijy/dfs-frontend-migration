@@ -1,7 +1,7 @@
 import os
 import bs4
 from helpers import frontendUrl, templateUrl, messageParser, isUrl, getLineNumber, \
-  get_nested_list, get_message_with_affinity, get_copyright
+  get_nested_list, get_message_with_affinity, get_copyright, get_partial_template
 
 
 def migrate_guide_messages(formId, formRef, uType, welshEnabled):
@@ -111,6 +111,7 @@ def generate_guide_template(formId, userType, stats):
     f.writelines(["\n\n@import play.twirl.api.Html",
                   "\n@import uk.gov.hmrc.dfstemplaterenderer.templates.guidePageTemplates.helpers.genericHelpers.html._",
                   "\n@import uk.gov.hmrc.dfstemplaterenderer.utils._",
+                  "\n@import uk.gov.hmrc.dfstemplaterenderer.models.LinkTemplate",
                   "\n\n@(params: Map[String, Any])",
                   f"\n\n@baseGenericGuidePageHeader(params, \"{formId}\")"])
 
@@ -154,20 +155,23 @@ def generate_guide_template(formId, userType, stats):
             print("==============It is a list =================")
 
       elif key == 'beforeStart':
-        f.write(f"\n\n@baseGenericGuidePageBody(params, \"{formId}\")")
+        text = get_partial_template(formId, count, key, value)
+        f.write(text)
 
-        f.write(
-          f"\n\n<p>@MessagesUtils.getMessagesWithAffinity(\"guide.{count:02d}\", \"{formId}\", {{params(\"langLocaleCode\")}}.toString, {{params(\"affinityGroup\")}}.toString)</p>")
-        count += 1
-
-        if len(value) > 2:
-          f.write(f"\n\n@noLinkList(params, \"{formId}\", Seq(")
-          for i in range(len(value[2])):
-            if i > 0:
-              f.write(", ")
-            f.write(f"\"guide.{count:02d}\"")
-            count += 1
-          f.write("))")
+        # f.write(
+        #   f"\n\n<p>@MessagesUtils.getMessagesWithAffinity(\"guide.{count:02d}\", \"{formId}\", {{params(\"langLocaleCode\")}}.toString, {{params(\"affinityGroup\")}}.toString)</p>")
+        # count += 1
+        #
+        # if len(value) > 2:
+        #   f.write(f"\n\n@noLinkList(params, \"{formId}\", Seq(")
+        #   for i in range(len(value[2])):
+        #     if i > 0:
+        #       f.write(", ")
+        #     f.write(f"\"guide.{count:02d}\"")
+        #     count += 1
+        #   f.write("))")
+      else:
+        print("ERROR: The detected set of messages are not of types: header, list, extraInfo or beforeStart.")
 
     f.write("\n\n<p>@MessagesUtils.getCommonMessages(\"page.guide.youCanTrack\", {params(\"langLocaleCode\")}.toString) <a href=\"@Links.ptaLink\">@MessagesUtils.getCommonMessages(\"abandon.pta.link.msg\", {params(\"langLocaleCode\")}.toString)</a> </p>")
     f.close()

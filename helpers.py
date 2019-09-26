@@ -59,7 +59,7 @@ def get_link_template(aList, id, startAt, idx):
     return c, s
 
 
-def write_partial_template(formId, count, key, value):
+def get_partial_template(formId, count, key, value):
   s = ''
   if key == 'beforeStart':
     s += f"\n\n@baseGenericGuidePageBody(params, \"{formId}\")"
@@ -73,18 +73,19 @@ def write_partial_template(formId, count, key, value):
       if not i: # empty list
         pass
       elif len(i) == 1: # contains a single paragraph
-        s += f"\n<p>{get_message_with_affinity(formId, count)}</p>"
+        s += f"\n\n<p>{get_message_with_affinity(formId, count)}</p>"
         count += 1
       elif i[0].endswith(':'):  # contains a list
-        s += f"\n<p>{get_message_with_affinity(formId, count)}</p>"
+        s += f"\n\n<p>{get_message_with_affinity(formId, count)}</p>"
         count += 1
-        s += f"\n{get_nested_list(formId, count, len(i) - 1)}"
+        s += f"\n\n{get_nested_list(formId, count, len(i) - 1)}"
         count += len(i) - 1
       elif index_of_urls(i): # contains a link
         count, t = get_link_template(i, formId, count, index_of_urls(i))
-        s += f"\n{t}"
+        s += f"\n\n{t}"
       else:
         s += f"\n\n!!!!!!! This is an UNHANDLED variation !!!!!!!"
+  return s
 
 
 def getLineNumber(fileUrl, lookup):
@@ -115,7 +116,7 @@ def get_generic_link(aList, formId, startFrom, index):
     link = f"\"{aList[1]}\""
     text = f"\"guide.{startFrom+1:02d}\""
     after = f"Some(\"guide.{startFrom+2:02d}\")" if len(aList) == 4 else 'None'
-  return f"@genericLink(params, \"{formId}\", LinkTemplate({before}, {link}, {text}, {after}))"
+  return f"<p>@genericLink(params, \"{formId}\", LinkTemplate({before}, {link}, {text}, {after}))</p>"
 
 
 def get_message_with_affinity(formId, num):
