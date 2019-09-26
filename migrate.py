@@ -10,12 +10,13 @@ from helpers import digitalUrl
 
 # exportFilePath = digitalUrl + '/conf/formCatalogue/CA72ASUB.conf'
 # exportFilePath = digitalUrl + '/conf/formCatalogue/CBOptIn.conf'
-exportFilePath = digitalUrl + '/conf/formCatalogue/PT_CertOfRes.conf'
+# exportFilePath = digitalUrl + '/conf/formCatalogue/PT_CertOfRes.conf'
+exportFilePath = digitalUrl + '/conf/formCatalogue/TC600SUB.conf'
 formCatalogueUrl = digitalUrl + '/conf/form-catalogue.conf'
 importFileName = 'migrationConfig.conf'
 
 
-# read form type reference from migrationConfig.conf
+# read form type reference from migrationConfig-PT_CertOfRes.conf
 f = open(importFileName, 'r')
 fLine = f.readline().strip()
 while fLine.startswith('#') or fLine == "":

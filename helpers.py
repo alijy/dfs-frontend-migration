@@ -33,15 +33,58 @@ def isUrl(s):
   return s.startswith('/') or s.startswith('http') or s.startswith('www.')
 
 
-# def refactoredDict(d):
-#   refactoredList = []
-#   tempDict = {}
-#   for k, v in d.items():
-#     tempDict[k] = v
-#     if v.endswith('.'):
-#       refactoredList.append(tempDict)
-#       tempDict = {}
-#   return refactoredList
+def index_of_urls(aList):
+  return [i for i in range(len(aList)) if isUrl(aList[i])]
+
+
+def get_link_template(aList, id, startAt, idx):
+  if len(idx) == 1:
+    return startAt + len(aList) - 1, get_generic_link(aList, id, startAt, idx[0])
+  else:
+    c = startAt
+    s = ''
+    s += f"\n\n<p>"
+    urlIndex = -99
+    for i, item in enumerate(aList):
+      if isUrl(item):
+        urlIndex = i
+        s += f" <a href=\"{item}\">"
+      else:
+        s += f"{get_message_with_affinity(id, c)}"
+        c += 1
+        if i == urlIndex + 1:
+          s += "</a>"
+          urlIndex = -99
+    s += "</p>"
+    return c, s
+
+
+def write_partial_template(formId, count, key, value):
+  s = ''
+  if key == 'beforeStart':
+    s += f"\n\n@baseGenericGuidePageBody(params, \"{formId}\")"
+    # print(f"\n\n@baseGenericGuidePageBody(params, \"{formId}\")")
+  for item in value[1:]:
+    split_lists = get_split_lists(item)
+    # print(f"item => {item}")
+    # print(f"split_lists => {split_lists}")
+    for i in split_lists:
+      # print(f"i => {i}")
+      if not i: # empty list
+        pass
+      elif len(i) == 1: # contains a single paragraph
+        s += f"\n<p>{get_message_with_affinity(formId, count)}</p>"
+        count += 1
+      elif i[0].endswith(':'):  # contains a list
+        s += f"\n<p>{get_message_with_affinity(formId, count)}</p>"
+        count += 1
+        s += f"\n{get_nested_list(formId, count, len(i) - 1)}"
+        count += len(i) - 1
+      elif index_of_urls(i): # contains a link
+        count, t = get_link_template(i, formId, count, index_of_urls(i))
+        s += f"\n{t}"
+      else:
+        s += f"\n\n!!!!!!! This is an UNHANDLED variation !!!!!!!"
 
 
 def getLineNumber(fileUrl, lookup):
@@ -61,45 +104,49 @@ def get_nested_list(formId, startFrom, size):
   return s
 
 
+def get_generic_link(aList, formId, startFrom, index):
+  if index == 0:
+    before = "None"
+    link = f"\"{aList[0]}\""
+    text = f"\"guide.{startFrom:02d}\""
+    after = f"Some(\"guide.{startFrom + 1:02d}\")" if len(aList) == 3 else "None"
+  else:
+    before = f"Some(\"guide.{startFrom:02d}\")"
+    link = f"\"{aList[1]}\""
+    text = f"\"guide.{startFrom+1:02d}\""
+    after = f"Some(\"guide.{startFrom+2:02d}\")" if len(aList) == 4 else 'None'
+  return f"@genericLink(params, \"{formId}\", LinkTemplate({before}, {link}, {text}, {after}))"
+
+
 def get_message_with_affinity(formId, num):
   return f"@MessagesUtils.getMessagesWithAffinity(\"guide.{num:02d}\", \"{formId}\", {{params(\"langLocaleCode\")}}.toString, {{params(\"affinityGroup\")}}.toString)"
 
 
+def get_split_lists(mList):
+  if [i for i in mList if isinstance(i, str) and i.endswith(':')]:
+    size = len(mList)
+    idx_list = [idx for idx, val in enumerate(mList) if val.endswith(':')]
+    res = [mList[i: j] for i, j in
+           zip([0] + idx_list, idx_list +
+               ([size] if idx_list[-1] != size else []))]
+    return [x for x in res if x]
+  else:
+    return [mList]
 
 
-
-# s = """page.guide.list.CBOptIn=<li>you''re the Child Benefit Claimant</li>\
-#   <li>you or your partner are affected by the High Income Child Benefit Charge</li>
-# """
-s = """page.guide.extraInfo.CBOptIn=<p>You can also use this form to restart your Child Benefit payments if:<ul class="list-bullet">\
-<li>you''re the Child Benefit Claimant</li>\
-<li>you still <a href="/qualigy/for/benefit">qualify for Child Benefit</a></li>\
-<li>you previously stopped your payments because of the High Income Child Benefit Tax Charge</li>\
-</ul></p>\
-"""
-# print(bs4.BeautifulSoup(s, 'html.parser'))
-# print([messageParser(str(item)) for item in bs4.BeautifulSoup(s, 'html.parser')])
-# print('-------------------------------------')
-# for i in bs4.BeautifulSoup(s, 'html.parser'):
-#   print(type(i))
-#   a = bs4.element.Tag
-# print('-------------------------------------')
-# for i in bs4.BeautifulSoup(s, 'html.parser').findAll(lambda tag: tag.string.strip() is not None):
-#   print(i)
-# for i in bs4.BeautifulSoup(s, 'html.parser'):
-#   print(bs4.BeautifulSoup(i, 'html.parser'))
-
-# print('=-----------------------------------=')
-# xs = s.split("\n")
-# html = ''
-# for tag in xs:
-#     if "<p" in tag and "</p" in tag:
-#         soup = bs4.BeautifulSoup(tag, 'html.parser')
-#         html = "{}\n{}".format(html, "[{}]".format(soup.text))
-#     elif "<p" in tag:
-#         html = "{}\n{}".format(html, "<ul>\n<li>{}</li>".format(tag[tag.find(">") + 1:]))
-#     elif "</p" in tag:
-#         html = "{}\n{}".format(html, "</ul>")
-#
-# print(html)
-
+def get_copyright():
+  return ["@*",
+          "\n* Copyright 2019 HM Revenue & Customs",
+          "\n*",
+          "\n* Licensed under the Apache License, Version 2.0 (the \"License\");",
+          "\n* you may not use this file except in compliance with the License.",
+          "\n* You may obtain a copy of the License at",
+          "\n*",
+          "\n*     http://www.apache.org/licenses/LICENSE-2.0",
+          "\n*",
+          "\n* Unless required by applicable law or agreed to in writing, software",
+          "\n* distributed under the License is distributed on an \"AS IS\" BASIS,",
+          "\n* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",
+          "\n* See the License for the specific language governing permissions and",
+          "\n* limitations under the License.",
+          "\n*@"]
