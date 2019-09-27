@@ -23,12 +23,14 @@ def migrate_guide_messages_for_lang(formId, formRef, uType, lang='en'):
   messages = f.read().split("\n")
   f.close()
 
-  index = 0
+  index = -1
   guideMessageList = []
 
+  ifAgent = '.agent' if uType == 'Agent' else ''
   for i in range(0, len(messages)):
-    if f"page.guide.header.{formId}" in messages[i]:  # expects header message to be the first one
+    if f"page.guide{ifAgent}.header.{formId}" in messages[i]:  # expects header message to be the first one
       index = i
+      break
 
   while messages[index] and not messages[index].strip().startswith("#"):
     gm = messages[index].strip()

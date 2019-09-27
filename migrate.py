@@ -200,6 +200,15 @@ else:
     f.writelines(["\n\t\t\t}",
                   "\n\t\t}\n"])
 
+  # Audit survey identifier
+  if userType == 'Agent':
+    value = ""
+    try:
+      value = conf[formTypeRef]['audit']['survey']['identifier']
+      f.writelines(["\n\t\taudit {", "\n\t\t\tsurvey {", f"\n\t\t\t\tidentifier = \"{value}\"", "\n\t\t\t}", "\n\t\t}\n"])
+    except:
+      print("WARN : Audit survey identifier NOT found in config file")
+
   # add guide page
   try:
     value = conf[formTypeRef]['start_page']
