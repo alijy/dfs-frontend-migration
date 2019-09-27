@@ -88,8 +88,8 @@ def get_partial_template(formId, count, key, value):
   return count, s
 
 
-def getLineNumber(fileUrl, lookup):
-  lineNum = 0
+def get_line_number(fileUrl, lookup):
+  lineNum = -1
   with open(fileUrl) as f:
     for num, line in enumerate(f, 1):
       if lookup in line:
@@ -151,3 +151,21 @@ def get_copyright():
           "\n* See the License for the specific language governing permissions and",
           "\n* limitations under the License.",
           "\n*@"]
+
+
+def add_to_config(formId, url):
+  fileUrl = digitalUrl + f"/conf/formCatalogue/{formId}.conf"
+  f = open(fileUrl, 'r')
+  contents = f.readlines()
+  f.close()
+
+  messageTemplate = f"\t\tcontinue_journey_uri = \"{url}\"\n"
+  lineNumber = get_line_number(fileUrl, 'guide_page =')
+  if lineNumber == -1:
+    lineNumber = get_line_number(fileUrl, 'affinity_access') - 1  # if no guide_page to latch on to, put it above affinity_access section
+  contents.insert(lineNumber, messageTemplate)
+
+  f = open(fileUrl, 'w')
+  contents = "".join(contents)
+  f.write(contents)
+  f.close()

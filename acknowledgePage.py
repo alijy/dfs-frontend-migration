@@ -1,4 +1,4 @@
-from helpers import sanitise, frontendUrl, templateUrl, getLineNumber
+from helpers import sanitise, frontendUrl, templateUrl, get_line_number, get_copyright, digitalUrl, add_to_config
 import os
 
 
@@ -26,10 +26,12 @@ def migrate_messages(formId, formRef, uType, lang = 'en'):
   ackMessageList = []
 
   for i in range(0, len(messages)):
-    if "acknowledgement" in messages[i].lower() and formRef.lower() in messages[i].lower():
-      ackIndex = i + 2
+    # if "acknowledgement" in messages[i].lower() and formRef.lower() in messages[i].lower():
+    #   ackIndex = i + 2
+    if f"page.ack.title.{formId}=" in messages[i] or f"page.ack.sent.{formId}=" in messages[i]:
+      ackIndex = i
 
-  while not (messages[ackIndex] == "" or messages[ackIndex].strip().startswith("#")):
+  while messages[ackIndex] and not messages[ackIndex].strip().startswith("#"):
     ackMessage = messages[ackIndex]
     if not ackMessage.strip().startswith('page'):
       ackMessageList[-1] += f"\n{ackMessage}"
@@ -60,17 +62,13 @@ def migrate_messages(formId, formRef, uType, lang = 'en'):
       f.writelines([f"\nack.tracking.{formId}.{uType}=",  # this is intentional to override the default value
                     f"\nlink.track-your-form.{formId}.{uType}={m.split('=')[1]}"])
     elif 'button.uri' in m.lower():
-      # TODO: update/change link.uri.track-your-form after DL-2350 is done
-      f.write(f"\nlink.uri.track-your-form.{formId}.{uType}={m.split('=')[1]}")
+      add_to_config(formId, m.split('=', 1)[1])
+      f.write(f"Note: Check that 'continue_journey_uri' is correctly added to {formId}.conf")
     else:
-      splitMessage = sanitise(m.split("\n"))
-      if len(splitMessage) == 1:
+      splitMessage = sanitise(m.split('=', 1)[1].split('\n'))
+      for i in splitMessage:
         ackCount += 1
-        f.write(f"\nack.{ackCount:02d}.{formId}.{uType}={splitMessage[0].split('=')[1]}")
-      else:
-        for i in range(1, len(splitMessage)):
-          ackCount += 1
-          f.write(f"\nack.{ackCount:02d}.{formId}.{uType}={splitMessage[i]}")
+        f.write(f"\nack.{ackCount:02d}.{formId}.{uType}={i}")
 
   return ackCount
 
@@ -87,22 +85,7 @@ def generate_acknowledge_template(formId, userType, messageNum):
     print('Warning: Acknowledgement template already exists')
   else:
     f = open(folder + f"/{userType}/{formId}.scala.html", 'w')
-    f.writelines(["@*",
-                  "\n* Copyright 2019 HM Revenue & Customs",
-                  "\n*",
-                  "\n* Licensed under the Apache License, Version 2.0 (the \"License\");",
-                  "\n* you may not use this file except in compliance with the License.",
-                  "\n* You may obtain a copy of the License at",
-                  "\n*",
-                  "\n*     http://www.apache.org/licenses/LICENSE-2.0",
-                  "\n*",
-                  "\n* Unless required by applicable law or agreed to in writing, software",
-                  "\n* distributed under the License is distributed on an \"AS IS\" BASIS,",
-                  "\n* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",
-                  "\n* See the License for the specific language governing permissions and",
-                  "\n* limitations under the License.",
-                  "\n*@"])
-
+    f.writelines(get_copyright())
     f.writelines(["\n\n@import uk.gov.hmrc.dfstemplaterenderer.utils._",
                   "\n@import uk.gov.hmrc.dfstemplaterenderer.templates.ackTemplates.helpers.html._",
                   "\n\n@(params: Map[String, Any])",
@@ -126,7 +109,8 @@ def update_ackTemplateLocator(formId, userType):
   contents = f.readlines()
   f.close()
 
-  contents.insert(36, f"\t\t\t\"{formId}.{userType}\"\t\t\t\t-> AckTemplates.{userType.lower()}Templates,\n")
+  lineNumber = get_line_number(fileUrl, 'templateGroups: Map[String, Seq[MessageTemplate]]') + 1
+  contents.insert(lineNumber, f"\t\t\t\"{formId}.{userType}\"\t\t\t\t-> AckTemplates.{userType.lower()}Templates,\n")
 
   f = open(fileUrl, 'w')
   contents = "".join(contents)
@@ -143,14 +127,7 @@ def update_ackTemplates(formId, userType):
   messageTemplate = f"""\t\tMessageTemplate.create(
 \t\t\ttemplateId = \"{formId}.{userType}\",
 \t\t\thtmlTemplate = {formId}.{userType}.html.{formId}.f),\n"""
-
-  if userType == 'Organisation':
-    lineNumber = 121
-  elif userType == 'Agent':
-    lineNumber = 107
-  else:
-    lineNumber = 29
-
+  lineNumber = get_line_number(fileUrl, f"{userType.lower()}Templates")
   contents.insert(lineNumber, messageTemplate)
 
   f = open(fileUrl, 'w')
@@ -161,7 +138,7 @@ def update_ackTemplates(formId, userType):
 
 def update_ackTemplate_spec(formId, userType):
   fileUrl = templateUrl + '/test/uk/gov/hmrc/dfstemplaterenderer/templates/ackTemplates/AckTemplateLocatorSpec.scala'
-  lineNumber = getLineNumber(fileUrl, 'ackTemplateLocator.templateGroups.keys')
+  lineNumber = get_line_number(fileUrl, 'ackTemplateLocator.templateGroups.keys')
 
   f = open(fileUrl, 'r')
   contents = f.readlines()
@@ -174,3 +151,5 @@ def update_ackTemplate_spec(formId, userType):
   contents = "".join(contents)
   f.write(contents)
   f.close()
+
+

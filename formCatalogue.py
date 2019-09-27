@@ -6,4 +6,3 @@ def update_form_catalogue(formId):
   f = open(formCatalogueUrl, 'a')
   f.write(f"\ninclude \"formCatalogue/{formId}.conf\"")
   f.close()
-  print("Form catalogue updated")

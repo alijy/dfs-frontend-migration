@@ -1,6 +1,6 @@
 import os
 import bs4
-from helpers import frontendUrl, templateUrl, messageParser, isUrl, getLineNumber, \
+from helpers import frontendUrl, templateUrl, messageParser, isUrl, get_line_number, \
   get_nested_list, get_message_with_affinity, get_copyright, get_partial_template
 
 
@@ -34,7 +34,6 @@ def migrate_guide_messages_for_lang(formId, formRef, uType, lang='en'):
     gm = messages[index].strip()
     if not gm.strip().startswith('page.guide'):
       if gm.strip() is not None:
-        # guideMessageList[-1] += f"\n{gm}"
         guideMessageList[-1] += f"{gm}"
         index += 1
     else:
@@ -43,7 +42,7 @@ def migrate_guide_messages_for_lang(formId, formRef, uType, lang='en'):
 
   print(f"guideMessageList: (count = {len(guideMessageList)}) {guideMessageList}")
 
-  # write acknowledge messages into dfs-template-renderer
+  # write guide page messages into dfs-template-renderer
   messageStats = {}
   count = 0
   f = open(exportUrl, 'a')
@@ -75,22 +74,6 @@ def migrate_guide_messages_for_lang(formId, formRef, uType, lang='en'):
   return messageStats
 
 
-# def decode_and_write_line(f, m):
-#   pass
-#
-#
-# def decode_and_write_section(f, m):
-#   m = ['do this if:','thing one','thing two', 'thing', '/thing/three', 'three', '!']
-#   if len(m) == 1:
-#     print(f"<p>{m}</p>")
-#   elif len(m) > 1:
-#     if m[0].endswith(':'):
-#       f.write(f"<p>{m}</p>")
-#       # decode_and_write
-#   else:
-#     pass # to move on in
-
-
 def messageUtilLine(count, formId):
   return f"@MessagesUtils.getMessagesWithAffinity(\"guide.{count}\", \"{formId}\", {{params(\"langLocaleCode\")}}.toString, {{params(\"affinityGroup\")}}.toString)"
 
@@ -104,7 +87,7 @@ def generate_guide_template(formId, userType, stats):
     os.mkdir(folder + f"/{userType}")
     print(f"Folder {userType} created")
   if os.path.isfile(folder + f"/{userType}/{formId}.scala.html"):
-    print('Warning: Acknowledgement template already exists')
+    print('Warning: Guide page template already exists')
   else:
     f = open(folder + f"/{userType}/{formId}.scala.html", 'w')
     f.writelines(get_copyright())
@@ -127,51 +110,9 @@ def generate_guide_template(formId, userType, stats):
           f.write(f"\"guide.{count:02d}\"")
           count += 1
         f.write("))")
-      elif key == 'extraInfo':
+      elif key == 'extraInfo' or key == 'beforeStart':
         count, text = get_partial_template(formId, count, key, value)
         f.write(text)
-        # TODO: need to make this section even more flexible
-        # for mLine in value[1:]:
-        #   if isinstance(mLine[0], str):
-        #     print(">>>>>>>>>>>>>> It is a string >>>>>>>>>>>>>>>>>")
-        #     if mLine[0].endswith(':'):
-        #       f.write(f"\n\n<p>{get_message_with_affinity(formId, count)}</p>")
-        #       count += 1
-        #       f.write(f"\n\n{get_nested_list(formId, count, len(mLine) - 1)}")
-        #       count += len(mLine) - 1
-        #     else:
-        #       f.write(f"\n\n<p>")
-        #       urlIndex = -99
-        #       for k in range(len(mLine)):
-        #         if isUrl(mLine[k]):
-        #           urlIndex = k
-        #           f.write(f" <a href=\"{mLine[k]}\">")
-        #         else:
-        #           f.write(f"{get_message_with_affinity(formId, count)}")
-        #           count += 1
-        #           if k == urlIndex + 1:
-        #             f.write("</a>")
-        #             urlIndex = -99
-        #       f.write("</p>")
-        #   else:
-        #     print("==============It is a list =================")
-
-      elif key == 'beforeStart':
-        count, text = get_partial_template(formId, count, key, value)
-        f.write(text)
-
-        # f.write(
-        #   f"\n\n<p>@MessagesUtils.getMessagesWithAffinity(\"guide.{count:02d}\", \"{formId}\", {{params(\"langLocaleCode\")}}.toString, {{params(\"affinityGroup\")}}.toString)</p>")
-        # count += 1
-        #
-        # if len(value) > 2:
-        #   f.write(f"\n\n@noLinkList(params, \"{formId}\", Seq(")
-        #   for i in range(len(value[2])):
-        #     if i > 0:
-        #       f.write(", ")
-        #     f.write(f"\"guide.{count:02d}\"")
-        #     count += 1
-        #   f.write("))")
       else:
         print("ERROR: The detected set of messages are not of types: header, list, extraInfo or beforeStart.")
 
@@ -184,13 +125,13 @@ def update_guideTemplateLocator(formId, userType):
   contents = f.readlines()
   f.close()
 
-  contents.insert(37, f"\t\t\t\"{formId}.{userType}\"\t\t\t\t\t-> GuidePageTemplates.{userType.lower()}Templates,\n")
+  lineNumber = get_line_number(fileUrl, "templateGroups: Map[String, Seq[MessageTemplate]]") + 1
+  contents.insert(lineNumber, f"\t\t\t\"{formId}.{userType}\"\t\t\t\t\t-> GuidePageTemplates.{userType.lower()}Templates,\n")
 
   f = open(fileUrl, 'w')
   contents = "".join(contents)
   f.write(contents)
   f.close()
-
 
 
 def update_guideTemplates(formId, userType):
@@ -200,14 +141,7 @@ def update_guideTemplates(formId, userType):
   f.close()
 
   messageTemplate = f"\t\tMessageTemplate.create(\n\t\t\ttemplateId = \"{formId}.{userType}\",\n\t\t\thtmlTemplate = {formId}.{userType}.html.{formId}.f),\n"
-
-  if userType == 'Organisation':
-    lineNumber = getLineNumber(fileUrl, 'organisationTemplates')
-  elif userType == 'Agent':
-    lineNumber = getLineNumber(fileUrl, 'agentTemplates')
-  else:
-    lineNumber = getLineNumber(fileUrl, 'individualTemplates')
-
+  lineNumber = get_line_number(fileUrl, f"{userType.lower()}Templates")
   contents.insert(lineNumber, messageTemplate)
 
   f = open(fileUrl, 'w')
@@ -218,7 +152,7 @@ def update_guideTemplates(formId, userType):
 
 def update_guideTemplate_spec(formId, userType):
   fileUrl = templateUrl + '/test/uk/gov/hmrc/dfstemplaterenderer/templates/guidePageTemplates/GuidePageTemplateLocatorSpec.scala'
-  lineNumber = getLineNumber(fileUrl, 'guidePageTemplateLocator.templateGroups.keys')
+  lineNumber = get_line_number(fileUrl, 'guidePageTemplateLocator.templateGroups.keys')
 
   f = open(fileUrl, 'r')
   contents = f.readlines()
