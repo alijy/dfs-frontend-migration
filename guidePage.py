@@ -1,5 +1,7 @@
 import os
 import bs4
+from nltk import flatten
+
 from helpers import frontendUrl, templateUrl, messageParser, isUrl, get_line_number, \
   get_nested_list, get_message_with_affinity, get_copyright, get_partial_template
 
@@ -68,7 +70,7 @@ def migrate_guide_messages_for_lang(formId, formRef, uType, lang='en'):
       messageStats[f"{mType}"] = parsedMessage
       print(f"Full-parsedMessage -> {parsedMessage}")
       for i in range(1, len(parsedMessage)):
-        for msgString in parsedMessage[i]:
+        for msgString in flatten(parsedMessage[i]):
           if not isUrl(msgString):
             count += 1
             f.write(f"\nguide.{count:02d}.{formId}.{uType}={msgString}")
