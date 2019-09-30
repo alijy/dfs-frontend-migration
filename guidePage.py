@@ -54,7 +54,7 @@ def migrate_guide_messages_for_lang(formId, formRef, uType, lang='en'):
 
   for m in guideMessageList:
     m = m.replace('\\', '')
-    if f"page.guide.header.{formId}" in m:
+    if f"page.guide{ifAgent}.header.{formId}" in m:
       f.write(f"\npage.guide.header.{formId}.{uType}={m.split('=')[1]}")
     else:
       print(f"m: {m}")
