@@ -103,7 +103,7 @@ def generate_guide_template(formId, userType, stats):
                   f"\n\n@baseGenericGuidePageHeader(params, \"{formId}\")"])
 
     print(f"\n\nstats:{stats}")
-    count = 1
+    count = 0
     for key, value in stats.items():
       print(f"k = {key},     v = {value}")
       if key == 'list':
@@ -111,17 +111,21 @@ def generate_guide_template(formId, userType, stats):
         for i in range(1, len(value)):
           if i > 1:
             f.write(", ")
-          f.write(f"\"guide.{count:02d}\"")
           count += 1
+          f.write(f"\"guide.{count:02d}\"")
         f.write("))")
       elif key == 'extraInfo' or key == 'beforeStart':
-        count, text = get_partial_template(formId, count, key, value)
+        if key == 'beforeStart':
+          f.write(f"\n\n@baseGenericGuidePageBody(params, \"{formId}\")")
+        count, text = get_partial_template(formId, count, key, value[1:])
         f.write(text)
       else:
         print("ERROR: The detected set of messages are not of types: header, list, extraInfo or beforeStart.")
 
-    f.write("\n\n<p>@MessagesUtils.getCommonMessages(\"page.guide.youCanTrack\", {params(\"langLocaleCode\")}.toString) <a href=\"@Links.ptaLink\">@MessagesUtils.getCommonMessages(\"abandon.pta.link.msg\", {params(\"langLocaleCode\")}.toString)</a> </p>")
+    if userType == 'Individual':
+      f.write("\n\n<p>@MessagesUtils.getCommonMessages(\"page.guide.youCanTrack\", {params(\"langLocaleCode\")}.toString) <a href=\"@Links.ptaLink\">@MessagesUtils.getCommonMessages(\"abandon.pta.link.msg\", {params(\"langLocaleCode\")}.toString)</a> </p>")
     f.close()
+
 
 def update_guideTemplateLocator(formId, userType):
   fileUrl = templateUrl + '/app/uk/gov/hmrc/dfstemplaterenderer/templates/guidePageTemplates/GuidePageTemplateLocator.scala'

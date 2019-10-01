@@ -1,6 +1,7 @@
 import re
 import bs4
 from lxml import html
+from nltk import flatten
 
 frontendUrl = '/Users/ali/code/hmrcdev/pool/dfs-frontend'
 digitalUrl  = '/Users/ali/code/hmrcdev/pool/dfs-digital-forms-frontend'
@@ -17,12 +18,24 @@ def sanitise(message_list):
   return result
 
 
-def get_data(d):
+def get_data2(d):
   if isinstance(d, bs4.element.NavigableString):
     yield d
   if d.name == 'a':
     yield d['href']
   yield from [i for b in getattr(d, 'contents', []) for i in get_data(b)]
+
+
+def get_data(d):
+  if isinstance(d, bs4.element.NavigableString):
+    yield d
+  elif d.name == 'a':
+    yield d['href']
+    yield from [i for b in getattr(d, 'contents', []) for i in get_data(b)]
+  elif d.name == 'ul' or d.name == 'li':
+    yield [i for b in getattr(d, 'contents', []) for i in get_data(b)]
+  else:
+    yield from [i for b in getattr(d, 'contents', []) for i in get_data(b)]
 
 
 def messageParser(message):
@@ -39,11 +52,11 @@ def index_of_urls(aList):
 
 def get_link_template(aList, id, startAt, idx):
   if len(idx) == 1:
-    return startAt + len(aList) - 1, get_generic_link(aList, id, startAt, idx[0])
+    return startAt + len(aList) - 2, get_generic_link(aList, id, startAt, idx[0])
   else:
     c = startAt
     s = ''
-    s += f"\n\n<p>"
+    s += f"<p>"
     urlIndex = -99
     for i, item in enumerate(aList):
       if isUrl(item):
@@ -56,36 +69,90 @@ def get_link_template(aList, id, startAt, idx):
           s += "</a>"
           urlIndex = -99
     s += "</p>"
-    return c, s
+    return c - 1, s
+
+
+def get_list_template(i, formId, count, nested):
+  c = count + 1
+  s = ''
+  if nested:
+    s = f"\"guide.{c:02d}\", Seq("
+  else:
+    s = f"{get_message_with_affinity(formId, c)}"
+    s += f"\n\n@nestedList(params, \"{formId}\", Seq("
+  for index, item in enumerate(i[1]):
+    if index > 0:
+      s += ', '
+    if len(item) == 1:
+      c += 1
+      s += f"\"guide.{c:02d}\""
+    elif len(item) == 2 and item[0].endswith(':'):
+      ts, c = get_list_template(item, formId, c, True)
+      s += ts
+    elif index_of_urls(item):
+      c, ts = get_link_template(item, formId, c + 1, index_of_urls(item))
+      s += ts
+  s += ')' if nested else '))'
+  return s, c
+
+# def get_partial_template2(formId, count, key, value):
+#   s = ''
+#   if key == 'beforeStart':
+#     s += f"\n\n@baseGenericGuidePageBody(params, \"{formId}\")"
+#     # print(f"\n\n@baseGenericGuidePageBody(params, \"{formId}\")")
+#   for item in value[1:]:
+#     split_lists = get_split_lists(item)
+#     # print(f"item => {item}")
+#     # print(f"split_lists => {split_lists}")
+#     for i in split_lists:
+#       # print(f"i => {i}")
+#       if not i: # empty list
+#         pass
+#       elif len(i) == 1: # contains a single paragraph
+#         s += f"\n\n<p>{get_message_with_affinity(formId, count)}</p>"
+#         count += 1
+#       elif i[0].endswith(':'):  # contains a list
+#         s += f"\n\n<p>{get_message_with_affinity(formId, count)}</p>"
+#         count += 1
+#         s += f"\n\n{get_nested_list(formId, count, len(i) - 1)}"
+#         count += len(i) - 1
+#       elif index_of_urls(i): # contains a link
+#         count, t = get_link_template(i, formId, count, index_of_urls(i))
+#         s += f"\n\n{t}"
+#       else:
+#         s += f"\n\n!!!!!!! This is an UNHANDLED variation !!!!!!!"
+#   return count, s
 
 
 def get_partial_template(formId, count, key, value):
   s = ''
-  if key == 'beforeStart':
-    s += f"\n\n@baseGenericGuidePageBody(params, \"{formId}\")"
-    # print(f"\n\n@baseGenericGuidePageBody(params, \"{formId}\")")
-  for item in value[1:]:
-    split_lists = get_split_lists(item)
-    # print(f"item => {item}")
-    # print(f"split_lists => {split_lists}")
-    for i in split_lists:
-      # print(f"i => {i}")
-      if not i: # empty list
-        pass
-      elif len(i) == 1: # contains a single paragraph
-        s += f"\n\n<p>{get_message_with_affinity(formId, count)}</p>"
-        count += 1
-      elif i[0].endswith(':'):  # contains a list
-        s += f"\n\n<p>{get_message_with_affinity(formId, count)}</p>"
-        count += 1
-        s += f"\n\n{get_nested_list(formId, count, len(i) - 1)}"
-        count += len(i) - 1
-      elif index_of_urls(i): # contains a link
-        count, t = get_link_template(i, formId, count, index_of_urls(i))
-        s += f"\n\n{t}"
+  # if key == 'beforeStart':
+  #   s += f"\n\n@baseGenericGuidePageBody(params, \"{formId}\")"
+  # for item in value[1:]:
+  for i in value:
+    # print(f"{key} - {i}")
+    if len(i) == 1:  # single <p> paragraph
+      count += 1
+      s += f"\n\n<p>{get_message_with_affinity(formId, count)}</p>"
+    elif isinstance(i[0], str) and i[0].endswith(':'):  # a <ul> list
+      if len(i) == 2:
+        result, count = get_list_template(i, formId, count, False)
+        s += f"\n\n<p>{result}</p>"
       else:
-        s += f"\n\n!!!!!!! This is an UNHANDLED variation !!!!!!!"
+        result, count = get_list_template(i[:2], formId, count, False)
+        s += f"\n\n<p>{result}</p>"
+        count, ts = get_partial_template(formId, count, key, [i[2:]])
+        s += f"{ts}"
+    elif i == flatten(i) and index_of_urls(i):  # paragraph <p> with <a> links
+      count, ts = get_link_template(i, formId, count + 1, index_of_urls(i))
+      if len(index_of_urls(i)) == 1:
+        s += f"\n\n<p>@genericLink(params, \"{formId}\", {ts})</p>"
+      else:
+        s += f"\n\n{ts}"
+    else:
+      print("ERROR : An unhandled variation was encountered when generating GUIDE PAGE TEMPLATE. This is most likely due to a missing html tag in guide page messages in dfs-frontend.")
   return count, s
+
 
 
 def get_line_number(fileUrl, lookup):
@@ -116,7 +183,7 @@ def get_generic_link(aList, formId, startFrom, index):
     link = f"\"{aList[1]}\""
     text = f"\"guide.{startFrom+1:02d}\""
     after = f"Some(\"guide.{startFrom+2:02d}\")" if len(aList) == 4 else 'None'
-  return f"<p>@genericLink(params, \"{formId}\", LinkTemplate({before}, {link}, {text}, {after}))</p>"
+  return f"LinkTemplate({before}, {link}, {text}, {after})"
 
 
 def get_message_with_affinity(formId, num):
@@ -124,9 +191,9 @@ def get_message_with_affinity(formId, num):
 
 
 def get_split_lists(mList):
-  if [i for i in mList if isinstance(i, str) and i.endswith(':')]:
+  idx_list = [idx for idx, val in enumerate(mList) if isinstance(val, str) and val.endswith(':')]
+  if idx_list:
     size = len(mList)
-    idx_list = [idx for idx, val in enumerate(mList) if val.endswith(':')]
     res = [mList[i: j] for i, j in
            zip([0] + idx_list, idx_list +
                ([size] if idx_list[-1] != size else []))]
