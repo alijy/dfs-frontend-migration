@@ -215,13 +215,13 @@ def enable_affinity(file, userType):
 
 
 def pInfo(message):
-  print(colored("WARN : ", 'green'), colored(message, 'yellow'))
+  print(colored("INFO : ", 'green'), colored(message, 'green'))
 
 
 def pWarn(message):
-  print(colored("WARN : ", 'green'), colored(message, 'yellow'))
+  print(colored("WARN : ", 'magenta'), colored(message, 'yellow'))
 
 
 def pError(message):
-  print(colored("WARN : ", 'green'), colored(message, 'yellow'))
+  print(colored("ERROR : ", 'red'), colored(message, 'red'))
 

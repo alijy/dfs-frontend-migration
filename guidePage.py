@@ -3,7 +3,7 @@ import bs4
 from nltk import flatten
 
 from helpers import frontendUrl, templateUrl, messageParser, isUrl, get_line_number, \
-  get_nested_list, get_message_with_affinity, get_copyright, get_partial_template
+  get_nested_list, get_message_with_affinity, get_copyright, get_partial_template, pInfo, pWarn, pError
 
 
 def migrate_guide_messages(formId, formRef, uType, welshEnabled):
@@ -86,12 +86,12 @@ def generate_guide_template(formId, userType, stats):
   folder = templateUrl + '/app/uk/gov/hmrc/dfstemplaterenderer/templates/guidePageTemplates' + f"/{formId}"
   if not os.path.exists(folder):
     os.mkdir(folder)
-    print(f"Folder {formId} created")
+    pInfo(f"Folder {formId} created")
   if not os.path.exists(folder + f"/{userType}"):
     os.mkdir(folder + f"/{userType}")
-    print(f"Folder {userType} created")
+    pInfo(f"Folder {userType} created")
   if os.path.isfile(folder + f"/{userType}/{formId}.scala.html"):
-    print('Warning: Guide page template already exists')
+    pWarn('Guide page template already exists')
   else:
     f = open(folder + f"/{userType}/{formId}.scala.html", 'w')
     f.writelines(get_copyright())
@@ -120,7 +120,7 @@ def generate_guide_template(formId, userType, stats):
         count, text = get_partial_template(formId, count, key, value[1:])
         f.write(text)
       else:
-        print("ERROR: The detected set of messages are not of types: header, list, extraInfo or beforeStart.")
+        pError("The detected set of messages are not of types: header, list, extraInfo or beforeStart.")
 
     if userType == 'Individual':
       f.write("\n\n<p>@MessagesUtils.getCommonMessages(\"page.guide.youCanTrack\", {params(\"langLocaleCode\")}.toString) <a href=\"@Links.ptaLink\">@MessagesUtils.getCommonMessages(\"abandon.pta.link.msg\", {params(\"langLocaleCode\")}.toString)</a> </p>")

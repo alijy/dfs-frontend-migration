@@ -1,6 +1,6 @@
 import re
 import os
-from helpers import sanitise, frontendUrl, templateUrl, get_line_number, get_copyright, add_to_config
+from helpers import sanitise, frontendUrl, templateUrl, get_line_number, get_copyright, add_to_config, pInfo, pWarn
 
 
 def migrate_acknowledge_messages(formId, formRef, uType, welshEnabled):
@@ -20,7 +20,6 @@ def migrate_messages(formId, formRef, uType, lang = 'en'):
   # read acknowledge messages from dfs-frontend
   f = open(importUrl, 'r')
   messages = f.read().split("\n")
-  print(f"messages = {messages}")
   f.close()
 
   ackIndex = 0
@@ -32,7 +31,7 @@ def migrate_messages(formId, formRef, uType, lang = 'en'):
       ackIndex = i
 
   if ackIndex == 0:
-    print(f"WARN: no acknowledge page message was found")
+    pWarn(f"no acknowledge page message was found")
     return 0
   else:
     while messages[ackIndex] and not messages[ackIndex].strip().startswith("#"):
@@ -82,12 +81,12 @@ def generate_acknowledge_template(formId, userType, messageNum):
   folder = templateUrl + '/app/uk/gov/hmrc/dfstemplaterenderer/templates/ackTemplates' + f"/{formId}"
   if not os.path.exists(folder):
     os.mkdir(folder)
-    print(f"Folder {formId} created")
+    pInfo(f"Folder {formId} created")
   if not os.path.exists(folder + f"/{userType}"):
     os.mkdir(folder + f"/{userType}")
-    print(f"Folder {userType} created")
+    pInfo(f"Folder {userType} created")
   if os.path.isfile(folder + f"/{userType}/{formId}.scala.html"):
-    print('Warning: Acknowledgement template already exists')
+    pWarn('Acknowledgement template already exists')
   else:
     f = open(folder + f"/{userType}/{formId}.scala.html", 'w')
     f.writelines(get_copyright())
