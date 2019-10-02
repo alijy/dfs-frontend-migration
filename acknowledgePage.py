@@ -1,5 +1,6 @@
-from helpers import sanitise, frontendUrl, templateUrl, get_line_number, get_copyright, digitalUrl, add_to_config
+import re
 import os
+from helpers import sanitise, frontendUrl, templateUrl, get_line_number, get_copyright, add_to_config
 
 
 def migrate_acknowledge_messages(formId, formRef, uType, welshEnabled):
@@ -26,51 +27,55 @@ def migrate_messages(formId, formRef, uType, lang = 'en'):
   ackMessageList = []
 
   for i in range(0, len(messages)):
-    # if "acknowledgement" in messages[i].lower() and formRef.lower() in messages[i].lower():
-    #   ackIndex = i + 2
-    if f"page.ack.title.{formId}=" in messages[i] or f"page.ack.sent.{formId}=" in messages[i]:
+    # if re.search(f"page.ack.title.{formId}=" in messages[i] or f"page.ack.sent.{formId}=" in messages[i]:
+    if re.search(f"page.ack.title.{formId}" + r"\s*=", messages[i]) or re.search(f"page.ack.sent.{formId}" + r"\s*=", messages[i]):
       ackIndex = i
 
-  while messages[ackIndex] and not messages[ackIndex].strip().startswith("#"):
-    ackMessage = messages[ackIndex]
-    if not ackMessage.strip().startswith('page'):
-      ackMessageList[-1] += f"\n{ackMessage}"
-    else:
-      ackMessageList.append(ackMessage)
-    ackIndex += 1
-
-  print(f"ackMessageList: {ackMessageList}")
-
-  # write acknowledge messages into dfs-template-renderer
-  ackCount = 0
-  f = open(exportUrl, 'a')
-  f.writelines(["\n\n##############################",
-                f"\n# Ack {formId} {uType} #",
-                "\n##############################"])
-
-  if lang == 'cy':
-    f.write(f"\nack.nextSteps.{formId}.{uType}=Camau nesaf")
+  if ackIndex == 0:
+    print(f"WARN: no acknowledge page message was found")
+    return 0
   else:
-    f.write(f"\nack.nextSteps.{formId}.{uType}=Next steps")
+    while messages[ackIndex] and not messages[ackIndex].strip().startswith("#"):
+      ackMessage = messages[ackIndex]
+      print(f"ackMessage : {ackMessage}")
+      if not ackMessage.strip().startswith('page'):
+        ackMessageList[-1] += f"\n{ackMessage}"
+      else:
+        ackMessageList.append(ackMessage)
+      ackIndex += 1
 
-  for m in ackMessageList:
-    if 'page.ack.sent' in m or 'page.ack.title' in m:
-      f.write(f"\nack.submitted.{formId}.{uType}={m.split('=')[1]}")
-    elif 'save_a_copy' in m.lower():
-      pass
-    elif 'button.text' in m.lower():
-      f.writelines([f"\nack.tracking.{formId}.{uType}=",  # this is intentional to override the default value
-                    f"\nlink.track-your-form.{formId}.{uType}={m.split('=')[1]}"])
-    elif 'button.uri' in m.lower():
-      add_to_config(formId, m.split('=', 1)[1])
-      f.write(f"Note: Check that 'continue_journey_uri' is correctly added to {formId}.conf")
+    print(f"ackMessageList: {ackMessageList}")
+
+    # write acknowledge messages into dfs-template-renderer
+    ackCount = 0
+    f = open(exportUrl, 'a')
+    f.writelines(["\n\n##############################",
+                  f"\n# Ack {formId} {uType} #",
+                  "\n##############################"])
+
+    if lang == 'cy':
+      f.write(f"\nack.nextSteps.{formId}.{uType}=Camau nesaf")
     else:
-      splitMessage = sanitise(m.split('=', 1)[1].split('\n'))
-      for i in splitMessage:
-        ackCount += 1
-        f.write(f"\nack.{ackCount:02d}.{formId}.{uType}={i}")
+      f.write(f"\nack.nextSteps.{formId}.{uType}=Next steps")
 
-  return ackCount
+    for m in ackMessageList:
+      if 'page.ack.sent' in m or 'page.ack.title' in m:
+        f.write(f"\nack.submitted.{formId}.{uType}={m.split('=')[1]}")
+      elif 'save_a_copy' in m.lower():
+        pass
+      elif 'button.text' in m.lower():
+        f.writelines([f"\nack.tracking.{formId}.{uType}=",  # this is intentional to override the default value
+                      f"\nlink.track-your-form.{formId}.{uType}={m.split('=')[1]}"])
+      elif 'button.uri' in m.lower():
+        add_to_config(formId, m.split('=', 1)[1])
+        f.write(f"Note: Check that 'continue_journey_uri' is correctly added to {formId}.conf")
+      else:
+        splitMessage = sanitise(m.split('=', 1)[1].split('\n'))
+        for i in splitMessage:
+          ackCount += 1
+          f.write(f"\nack.{ackCount:02d}.{formId}.{uType}={i}")
+
+    return ackCount
 
 
 def generate_acknowledge_template(formId, userType, messageNum):

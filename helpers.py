@@ -1,7 +1,7 @@
 import re
 import bs4
-from lxml import html
 from nltk import flatten
+from termcolor import colored
 
 frontendUrl = '/Users/ali/code/hmrcdev/pool/dfs-frontend'
 digitalUrl  = '/Users/ali/code/hmrcdev/pool/dfs-digital-forms-frontend'
@@ -95,40 +95,9 @@ def get_list_template(i, formId, count, nested):
   s += ')' if nested else '))'
   return s, c
 
-# def get_partial_template2(formId, count, key, value):
-#   s = ''
-#   if key == 'beforeStart':
-#     s += f"\n\n@baseGenericGuidePageBody(params, \"{formId}\")"
-#     # print(f"\n\n@baseGenericGuidePageBody(params, \"{formId}\")")
-#   for item in value[1:]:
-#     split_lists = get_split_lists(item)
-#     # print(f"item => {item}")
-#     # print(f"split_lists => {split_lists}")
-#     for i in split_lists:
-#       # print(f"i => {i}")
-#       if not i: # empty list
-#         pass
-#       elif len(i) == 1: # contains a single paragraph
-#         s += f"\n\n<p>{get_message_with_affinity(formId, count)}</p>"
-#         count += 1
-#       elif i[0].endswith(':'):  # contains a list
-#         s += f"\n\n<p>{get_message_with_affinity(formId, count)}</p>"
-#         count += 1
-#         s += f"\n\n{get_nested_list(formId, count, len(i) - 1)}"
-#         count += len(i) - 1
-#       elif index_of_urls(i): # contains a link
-#         count, t = get_link_template(i, formId, count, index_of_urls(i))
-#         s += f"\n\n{t}"
-#       else:
-#         s += f"\n\n!!!!!!! This is an UNHANDLED variation !!!!!!!"
-#   return count, s
-
 
 def get_partial_template(formId, count, key, value):
   s = ''
-  # if key == 'beforeStart':
-  #   s += f"\n\n@baseGenericGuidePageBody(params, \"{formId}\")"
-  # for item in value[1:]:
   for i in value:
     # print(f"{key} - {i}")
     if len(i) == 1:  # single <p> paragraph
@@ -236,3 +205,23 @@ def add_to_config(formId, url):
   contents = "".join(contents)
   f.write(contents)
   f.close()
+
+
+def enable_affinity(file, userType):
+  s = open(file, 'r').read()
+  s = s.replace(f"{userType.lower()} {{\n\t\t\t\tenabled = false", f"{userType.lower()} {{\n\t\t\t\tenabled = true")
+  f = open(file, 'w')
+  f.write(s)
+
+
+def pInfo(message):
+  print(colored("WARN : ", 'green'), colored(message, 'yellow'))
+
+
+def pWarn(message):
+  print(colored("WARN : ", 'green'), colored(message, 'yellow'))
+
+
+def pError(message):
+  print(colored("WARN : ", 'green'), colored(message, 'yellow'))
+
