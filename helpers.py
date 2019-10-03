@@ -100,7 +100,9 @@ def get_partial_template(formId, count, key, value):
   s = ''
   for i in value:
     # print(f"{key} - {i}")
-    if len(i) == 1:  # single <p> paragraph
+    if not i:
+      pass
+    elif len(i) == 1:  # single <p> paragraph
       count += 1
       s += f"\n\n<p>{get_message_with_affinity(formId, count)}</p>"
     elif isinstance(i[0], str) and i[0].endswith(':'):  # a <ul> list

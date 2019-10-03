@@ -108,7 +108,7 @@ def generate_guide_template(formId, userType, stats):
       print(f"k = {key},     v = {value}")
       if key == 'list':
         f.write(f"\n\n@noLinkList(params, \"{formId}\", Seq(")
-        for i in range(1, len(value)):
+        for i in range(1, len(flatten(value))):
           if i > 1:
             f.write(", ")
           count += 1
