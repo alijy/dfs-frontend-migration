@@ -14,6 +14,7 @@ from helpers import digitalUrl, get_line_number, pWarn, pInfo, pError
 # exportFilePath = digitalUrl + '/conf/formCatalogue/PT_CertOfRes.conf'
 # exportFilePath = digitalUrl + '/conf/formCatalogue/TC600SUB.conf'
 exportFilePath = digitalUrl + '/conf/formCatalogue/TC122SUB.conf'
+exportFilePath = digitalUrl + '/conf/formCatalogue/P11DBSUB.conf'
 formCatalogueUrl = digitalUrl + '/conf/form-catalogue.conf'
 importFileName = 'migrationConfig.conf'
 
@@ -258,7 +259,7 @@ messageCount = migrate_acknowledge_messages(formId, formTypeRef, userType, welsh
 if messageCount > 0:
   pInfo(f"SUCCESS - Acknowledgement page messages migrated")
   generate_acknowledge_template(formId, userType, messageCount)
-  pInfo(f"ISUCCESS - Acknowledgement page template created")
+  pInfo(f"SUCCESS - Acknowledgement page template created")
 
 update_ackTemplateLocator(formId, userType)
 pInfo(f"SUCCESS - ackTemplateLocator updated")
@@ -269,6 +270,12 @@ pInfo(f"SUCCESS - ackTemplates updated")
 update_ackTemplate_spec(formId, userType)
 pInfo(f"SUCCESS - ackTemplate_spec updated")
 
+
+respond = migrate_emails(formId, formTypeRef, welshEnabled)
+if 'SUCCESS' in respond:
+  pInfo(respond)
+else:
+  pWarn(respond)
 
 # read guide page type for guide page migration
 guidePageType = ''
@@ -298,8 +305,5 @@ elif guidePageType == 'tes':
   pWarn("This is a TES form. You need to migrate the guide page manually!")
 else:
   pWarn("I couldn't find guide_page_type in the config file")
-
-respond = migrate_emails(formId, formTypeRef, welshEnabled)
-pInfo(f"{respond}")
 
 pInfo("*** Migration Process Completed ***")
