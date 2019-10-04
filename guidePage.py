@@ -3,7 +3,7 @@ import bs4
 from nltk import flatten
 
 from helpers import frontendUrl, templateUrl, messageParser, isUrl, get_line_number, \
-  get_nested_list, get_message_with_affinity, get_copyright, get_partial_template, pInfo, pWarn, pError
+  get_copyright, get_partial_template, pInfo, pWarn, pError
 
 
 def migrate_guide_messages(formId, formRef, uType, welshEnabled):
@@ -34,48 +34,48 @@ def migrate_guide_messages_for_lang(formId, formRef, uType, lang='en'):
       index = i
       break
 
-  while messages[index] and not messages[index].strip().startswith("#"):
-    gm = messages[index].strip()
-    if not gm.strip().startswith('page.guide'):
-      if gm.strip() is not None:
-        guideMessageList[-1] += f"{gm}"
-        index += 1
-    else:
-      guideMessageList.append(gm)
-      index += 1
-
-  print(f"guideMessageList: (count = {len(guideMessageList)}) {guideMessageList}")
-
-  # write guide page messages into dfs-template-renderer
-  messageStats = {}
-  count = 0
-  f = open(exportUrl, 'a')
-  f.writelines(["\n\n###################################",
-                f"\n# Guide Page {formId} {uType} #",
-                "\n###################################"])
-
-  for m in guideMessageList:
-    m = m.replace('\\', '')
-    if f"page.guide{ifAgent}.header.{formId}" in m:
-      f.write(f"\npage.guide.header.{formId}.{uType}={m.split('=')[1]}")
-    else:
-      print(f"m: {m}")
-      if 'extraInfo' in m:
-        mType = 'extraInfo'
-      elif 'beforeStart' in m:
-        mType = 'beforeStart'
+  if index == -1:
+    pWarn(f"no acknowledge page message was found")
+    return {}
+  else:
+    while messages[index] and not messages[index].strip().startswith("#"):
+      gm = messages[index].strip()
+      if not gm.strip().startswith('page.guide'):
+        if gm.strip() is not None:
+          guideMessageList[-1] += f"{gm}"
+          index += 1
       else:
-        mType = 'list'
-      parsedMessage = [messageParser(str(item)) for item in bs4.BeautifulSoup(m, 'html.parser')]
-      messageStats[f"{mType}"] = parsedMessage
-      print(f"Full-parsedMessage -> {parsedMessage}")
-      for i in range(1, len(parsedMessage)):
-        for msgString in flatten(parsedMessage[i]):
-          if not isUrl(msgString):
-            count += 1
-            f.write(f"\nguide.{count:02d}.{formId}.{uType}={msgString}")
+        guideMessageList.append(gm)
+        index += 1
 
-  return messageStats
+    # write guide page messages into dfs-template-renderer
+    messageStats = {}
+    count = 0
+    f = open(exportUrl, 'a')
+    f.writelines(["\n\n###################################",
+                  f"\n# Guide Page {formId} {uType} #",
+                  "\n###################################"])
+
+    for m in guideMessageList:
+      m = m.replace('\\', '')
+      if f"page.guide{ifAgent}.header.{formId}" in m:
+        f.write(f"\npage.guide.header.{formId}.{uType}={m.split('=')[1]}")
+      else:
+        if 'extraInfo' in m:
+          mType = 'extraInfo'
+        elif 'beforeStart' in m:
+          mType = 'beforeStart'
+        else:
+          mType = 'list'
+        parsedMessage = [messageParser(str(item)) for item in bs4.BeautifulSoup(m, 'html.parser')]
+        messageStats[f"{mType}"] = parsedMessage
+        for i in range(1, len(parsedMessage)):
+          for msgString in flatten(parsedMessage[i]):
+            if not isUrl(msgString):
+              count += 1
+              f.write(f"\nguide.{count:02d}.{formId}.{uType}={msgString}")
+
+    return messageStats
 
 
 def messageUtilLine(count, formId):

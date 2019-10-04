@@ -8,22 +8,14 @@ digitalUrl  = '/Users/ali/code/hmrcdev/pool/dfs-digital-forms-frontend'
 templateUrl = '/Users/ali/code/hmrcdev/pool/dfs-template-renderer'
 
 
-def sanitise(message_list):
-  result = []
-  cleaner = re.compile('<.*?>')
-  for m in message_list:
-    clean_text = re.sub(cleaner, '', m).strip("\\").strip()
-    if clean_text != "":
-      result.append(clean_text)
-  return result
-
-
-def get_data2(d):
-  if isinstance(d, bs4.element.NavigableString):
-    yield d
-  if d.name == 'a':
-    yield d['href']
-  yield from [i for b in getattr(d, 'contents', []) for i in get_data(b)]
+def sanitise(a):
+  s = []
+  for i in a:
+    if isinstance(i, str) and i.strip():
+      s+= a
+    elif isinstance(i, list):
+      s.append(sanitise(i))
+  return s
 
 
 def get_data(d):

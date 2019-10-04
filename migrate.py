@@ -1,20 +1,18 @@
 import ntpath
 import os.path
 from pyhocon import ConfigFactory
-from acknowledgePage import migrate_acknowledge_messages, generate_acknowledge_template, update_ackTemplateLocator, \
-  update_ackTemplates, update_ackTemplate_spec
 from emailHelper import migrate_emails
 from formCatalogue import *
+from helpers import digitalUrl, get_line_number, pWarn, pInfo, pError
+from acknowledgePage import migrate_acknowledge_messages, generate_acknowledge_template, \
+  update_ackTemplateLocator, update_ackTemplates, update_ackTemplate_spec
 from guidePage import migrate_guide_messages, generate_guide_template, update_guideTemplateLocator, \
   update_guideTemplates, update_guideTemplate_spec, guide_page_exists
-from helpers import digitalUrl, get_line_number, pWarn, pInfo, pError
 
-# exportFilePath = digitalUrl + '/conf/formCatalogue/CA72ASUB.conf'
-# exportFilePath = digitalUrl + '/conf/formCatalogue/CBOptIn.conf'
-# exportFilePath = digitalUrl + '/conf/formCatalogue/PT_CertOfRes.conf'
-# exportFilePath = digitalUrl + '/conf/formCatalogue/TC600SUB.conf'
-exportFilePath = digitalUrl + '/conf/formCatalogue/TC122SUB.conf'
-exportFilePath = digitalUrl + '/conf/formCatalogue/P11DBSUB.conf'
+formId = 'PT_CertOfRes'
+
+
+exportFilePath = digitalUrl + '/conf/formCatalogue/' + formId + '.conf'
 formCatalogueUrl = digitalUrl + '/conf/form-catalogue.conf'
 importFileName = 'migrationConfig.conf'
 
@@ -30,7 +28,6 @@ f.close()
 
 # determine form ID from exportFilePath
 exportFileName = ntpath.basename(exportFilePath)
-formId = ntpath.splitext(exportFileName)[0]
 
 
 # parse config file into a tree structure
@@ -74,7 +71,6 @@ finally:
 value = ""
 try:
   value = conf[formTypeRef]['dms']['dms_metadata']['classification_type']
-  print(f"classification (type: {type(value)}) = {value}")
 except:
   pWarn("DMS classification type NOT found in config file")
 finally:
@@ -96,6 +92,9 @@ finally:
 # Welsh classification type
 s += "\n\t\t\t\twelsh_classification_type = \"WLU-WCC-XDFSWelshLanguageService\""
 
+# use_form_id for CASCA1SUB
+if formId == 'CASCA1SUB':
+  s += '\n\t\t\t\tuse_form_id = true'
 
 # user id xpath
 s += "\n" +\
@@ -157,20 +156,27 @@ organisationAccess = 'false'
 oneTimePass = 'false'
 userType = 'Individual'  # default
 try:
-  value = conf[formTypeRef]['authentication']['type']
-  if value == 'GGIV':
+  if formId == 'CASCA1SUB':
     individualAccess = 'true'
-    userType = 'Individual'
-  elif value == 'GGW':
     organisationAccess = 'true'
-    userType = 'Organisation'
-  elif value == 'GGWANY':
     agentAccess = 'true'
-    userType = 'Agent'
-  elif value == 'OTP':
-    individualAccess = 'true'
-    oneTimePass = 'true'
-    userType = 'Individual'
+  else:
+    value = conf[formTypeRef]['authentication']['type']
+    if value == 'GGIV':
+      individualAccess = 'true'
+      userType = 'Individual'
+    elif value == 'GGW':
+      organisationAccess = 'true'
+      userType = 'Organisation'
+    elif value == 'GGWANY':
+      agentAccess = 'true'
+      userType = 'Agent'
+    elif value == 'OTP':
+      individualAccess = 'true'
+      oneTimePass = 'true'
+      userType = 'Individual'
+    else:
+      pError("authentication type NOT recognised. Check the generated config file")
 except:
   pWarn("authentication type NOT found in config file")
 finally:
@@ -254,11 +260,11 @@ else:
 pInfo(f"SUCCESS - Config file created - id: {formId} , ref: {formTypeRef} , user: {userType}")
 
 
-messageCount = migrate_acknowledge_messages(formId, formTypeRef, userType, welshEnabled)
+messageList = migrate_acknowledge_messages(formId, formTypeRef, userType, welshEnabled)
 
-if messageCount > 0:
+if messageList:
   pInfo(f"SUCCESS - Acknowledgement page messages migrated")
-  generate_acknowledge_template(formId, userType, messageCount)
+  generate_acknowledge_template(formId, userType, messageList)
   pInfo(f"SUCCESS - Acknowledgement page template created")
 
 update_ackTemplateLocator(formId, userType)

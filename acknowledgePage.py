@@ -1,6 +1,9 @@
 import re
 import os
-from helpers import sanitise, frontendUrl, templateUrl, get_line_number, get_copyright, add_to_config, pInfo, pWarn
+import bs4
+from nltk import flatten
+from helpers import sanitise, frontendUrl, templateUrl, get_line_number, get_copyright, add_to_config, pInfo, pWarn, \
+  messageParser
 
 
 def migrate_acknowledge_messages(formId, formRef, uType, welshEnabled):
@@ -22,26 +25,25 @@ def migrate_messages(formId, formRef, uType, lang = 'en'):
   messages = f.read().split("\n")
   f.close()
 
-  ackIndex = 0
+  index = -1
   ackMessageList = []
 
   for i in range(0, len(messages)):
-    # if re.search(f"page.ack.title.{formId}=" in messages[i] or f"page.ack.sent.{formId}=" in messages[i]:
     if re.search(f"page.ack.title.{formId}" + r"\s*=", messages[i]) or re.search(f"page.ack.sent.{formId}" + r"\s*=", messages[i]):
-      ackIndex = i
+      index = i
+      break
 
-  if ackIndex == 0:
+  if index == -1:
     pWarn(f"no acknowledge page message was found")
-    return 0
+    return []
   else:
-    while messages[ackIndex] and not messages[ackIndex].strip().startswith("#"):
-      ackMessage = messages[ackIndex]
-      print(f"ackMessage : {ackMessage}")
-      if not ackMessage.strip().startswith('page'):
-        ackMessageList[-1] += f"\n{ackMessage}"
+    while messages[index] and not messages[index].strip().startswith("#"):
+      am = messages[index]
+      if not am.strip().startswith('page'):
+        ackMessageList[-1] += f"{am}"
       else:
-        ackMessageList.append(ackMessage)
-      ackIndex += 1
+        ackMessageList.append(am)
+      index += 1
 
     print(f"ackMessageList: {ackMessageList}")
 
@@ -57,7 +59,9 @@ def migrate_messages(formId, formRef, uType, lang = 'en'):
     else:
       f.write(f"\nack.nextSteps.{formId}.{uType}=Next steps")
 
+    parsedMessage = []
     for m in ackMessageList:
+      m = m.replace('\\', '')
       if 'page.ack.sent' in m or 'page.ack.title' in m:
         f.write(f"\nack.submitted.{formId}.{uType}={m.split('=')[1]}")
       elif 'save_a_copy' in m.lower():
@@ -68,16 +72,23 @@ def migrate_messages(formId, formRef, uType, lang = 'en'):
       elif 'button.uri' in m.lower():
         add_to_config(formId, m.split('=', 1)[1])
         f.write(f"Note: Check that 'continue_journey_uri' is correctly added to {formId}.conf")
-      else:
-        splitMessage = sanitise(m.split('=', 1)[1].split('\n'))
-        for i in splitMessage:
+      elif f"what_happens_next.{formId}".lower() in m.lower():
+        parsedMessage = [messageParser(str(item)) for item in bs4.BeautifulSoup(m, 'html.parser')]
+        parsedMessage = sanitise(parsedMessage)
+        print(f"parsed ack : {parsedMessage}")
+        for i in flatten(parsedMessage[1:]):
           ackCount += 1
           f.write(f"\nack.{ackCount:02d}.{formId}.{uType}={i}")
+      else:
+        try:
+          pWarn(f"{m.split('=')[0]} was ignored in acknowledge message migration")
+        except:
+          pWarn('An unhandled message was found in acknowledge messages')
 
-    return ackCount
+    return parsedMessage
 
 
-def generate_acknowledge_template(formId, userType, messageNum):
+def generate_acknowledge_template(formId, userType, ml):
   folder = templateUrl + '/app/uk/gov/hmrc/dfstemplaterenderer/templates/ackTemplates' + f"/{formId}"
   if not os.path.exists(folder):
     os.mkdir(folder)
@@ -97,8 +108,22 @@ def generate_acknowledge_template(formId, userType, messageNum):
                   "\n@downloadPdfLink(params)",
                   "\n@heading2(\"ack.nextSteps\",params)"])
 
-    for i in range(messageNum):
-      f.write(f"\n@paragraph(\"ack.{i+1:02d}\", params)")
+    count = 0
+    for i in ml[1:]:
+      if not i:
+        pass
+      elif i == flatten(i):
+        count += 1
+        f.write(f"\n@paragraph(\"ack.{count:02d}\", params)")
+      elif len(i) == 1:
+        f.write(f"\n@unorderedList(Seq(")
+        length = len(flatten(i))
+        for j in range(length):
+          if j > 0:
+            f.write(', ')
+          count += 1
+          f.write(f"\"ack.{count:02d}\"")
+        f.write('), params)')
 
     f.write("\n@ContinueJourneyButton(params)")
     if userType == 'Individual':
