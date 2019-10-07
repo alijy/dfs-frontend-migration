@@ -36,7 +36,7 @@ Install the following packages using the command: `pip3 install <package name>`
 - nltk
 - bs4
 
-# How to run
+## How to run
 
 In order to migrate a form from DFS_FRONTEND to DFS_DIGITAL_FORMS_FRONTEND follow these steps:
 
